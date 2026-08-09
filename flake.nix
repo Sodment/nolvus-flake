@@ -229,7 +229,11 @@
           # in the prebuilt Nolvus release, not in a source build, so provide
           # them from nixpkgs by symlinking into lib. (7-Zip's 7zz accepts the
           # same `x -bsp1 -y -o -mmt=off` args the app uses.)
-          mkdir -p "$APPDIR/lib"
+          # lib/ and lib/Patches/ normally ship in the prebuilt release; the
+          # app's FolderService never creates them, and the stock-game patcher
+          # downloads patch files straight into lib/Patches (no mkdir), so create
+          # the tree here.
+          mkdir -p "$APPDIR/lib/Patches"
           ln -sf ${pkgs._7zz}/bin/7zz "$APPDIR/lib/7z"
           ln -sf ${pkgs.xdelta}/bin/xdelta3 "$APPDIR/lib/xdelta3"
 
