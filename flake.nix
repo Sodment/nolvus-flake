@@ -36,6 +36,19 @@
         # ------------------------------------------------------------------
         cefRuntimeLibs = (with pkgs; [
           gtk3
+          # libcef.so has no RUNPATH, so ALL of its direct deps must be present
+          # in the FHS /usr/lib. buildFHSEnv only stages directly-listed
+          # packages (not gtk3's transitive closure), so enumerate the standard
+          # Chromium dependency set explicitly. Their own sub-deps resolve via
+          # each nix lib's RUNPATH.
+          glib            # libgobject-2.0 / libglib-2.0 / libgio-2.0
+          pango
+          cairo
+          atk             # libatk-1.0
+          at-spi2-atk     # libatk-bridge-2.0
+          at-spi2-core    # libatspi
+          gdk-pixbuf
+          harfbuzz
           nss
           nspr
           libdrm
