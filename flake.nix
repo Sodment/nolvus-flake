@@ -29,6 +29,26 @@
         # "Unsupported Method". Most Nexus mods are .rar, so this is required.
         sevenzip = pkgs._7zz.override { enableUnfree = true; };
 
+        # Wrapper the app uses as lib/7z. Runs the real 7-Zip (passing its
+        # progress stdout straight through), then repairs any extracted
+        # filenames that were written as raw non-UTF-8 codepage bytes — .NET
+        # can't reopen those, which breaks the copy step for a few mods (e.g. a
+        # texture named "GradIllusion01 - <special>.dds"). convmv in smart mode
+        # leaves already-valid-UTF-8 names untouched and only reinterprets the
+        # broken ones as Windows-1252 (the encoding such names originate from).
+        sevenZipWrapper = pkgs.writeShellScript "7z" ''
+          out=""
+          for a in "$@"; do
+            case "$a" in -o*) out="''${a#-o}";; esac
+          done
+          ${sevenzip}/bin/7zz "$@"
+          rc=$?
+          if [ -n "$out" ] && [ -d "$out" ]; then
+            ${pkgs.convmv}/bin/convmv -f windows-1252 -t utf8 -r --notest "$out" >/dev/null 2>&1 || true
+          fi
+          exit $rc
+        '';
+
         # BSArch is a Windows-only tool (no native Linux build). The app calls
         # `lib/BSArch unpack <bsa> <destDir>`. We wrap the BSArch.exe that the
         # app itself downloads into the modlist's TOOLS/BSArch folder and run it
@@ -308,7 +328,7 @@
           # downloads patch files straight into lib/Patches (no mkdir), so create
           # the tree here.
           mkdir -p "$APPDIR/lib/Patches"
-          ln -sf ${sevenzip}/bin/7zz "$APPDIR/lib/7z"
+          ln -sf ${sevenZipWrapper} "$APPDIR/lib/7z"
           ln -sf ${pkgs.xdelta}/bin/xdelta3 "$APPDIR/lib/xdelta3"
           ln -sf ${bsarchWrapper} "$APPDIR/lib/BSArch"
 
