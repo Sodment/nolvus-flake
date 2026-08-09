@@ -104,6 +104,9 @@
           findutils
           which
           bashInteractive
+          # native tools the installer shells out to from <app>/lib
+          _7zz
+          xdelta
         ]);
 
         fontPkgs = with pkgs; [ dejavu_fonts liberation_ttf ];
@@ -219,6 +222,16 @@
           else
             echo "WARNING: libcef.so not found under $APPDIR — CEF/SSO will fail." >&2
           fi
+
+          # --- Bundled native tools ----------------------------------------
+          # The installer runs 7z / xdelta3 / BSArch from <app>/lib using
+          # hardcoded paths (it does NOT search PATH). Those binaries ship only
+          # in the prebuilt Nolvus release, not in a source build, so provide
+          # them from nixpkgs by symlinking into lib. (7-Zip's 7zz accepts the
+          # same `x -bsp1 -y -o -mmt=off` args the app uses.)
+          mkdir -p "$APPDIR/lib"
+          ln -sf ${pkgs._7zz}/bin/7zz "$APPDIR/lib/7z"
+          ln -sf ${pkgs.xdelta}/bin/xdelta3 "$APPDIR/lib/xdelta3"
 
           cd "$APPDIR"
           # Extra CEF/Chromium flags can be passed through, e.g.
