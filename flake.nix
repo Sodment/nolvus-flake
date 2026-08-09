@@ -24,6 +24,48 @@
         dotnet-runtime = pkgs.dotnet-runtime_9;
         dotnet-sdk = pkgs.dotnet-sdk_9;
 
+        # 7-Zip WITH the RAR codec. nixpkgs disables RAR by default (unfree
+        # unRAR license); without it, extracting .rar mods fails with
+        # "Unsupported Method". Most Nexus mods are .rar, so this is required.
+        sevenzip = pkgs._7zz.override { enableUnfree = true; };
+
+        # BSArch is a Windows-only tool (no native Linux build). The app calls
+        # `lib/BSArch unpack <bsa> <destDir>`. We wrap the BSArch.exe that the
+        # app itself downloads into the modlist's TOOLS/BSArch folder and run it
+        # under Wine, translating the Unix paths with winepath.
+        bsarchWrapper = pkgs.writeShellScript "BSArch" ''
+          set -eu
+          export WINEPREFIX="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard/.wine"
+          export WINEDEBUG=-all
+          export WINEDLLOVERRIDES="mscoree=d;mshtml=d"
+
+          cmd="''${1:-}"; src="''${2:-}"; dst="''${3:-}"
+
+          # Locate BSArch*.exe by walking up from the BSA path to
+          # <InstallDir>/TOOLS/BSArch (where the app installs it).
+          exe=""; d="$(dirname "$src")"
+          while [ -n "$d" ] && [ "$d" != "/" ]; do
+            for c in "$d/TOOLS/BSArch/BSArch64.exe" "$d/TOOLS/BSArch/BSArch.exe"; do
+              [ -f "$c" ] && { exe="$c"; break; }
+            done
+            [ -n "$exe" ] && break
+            d="$(dirname "$d")"
+          done
+
+          if [ -z "$exe" ]; then
+            echo "BSArch wrapper: could not find BSArch*.exe under <InstallDir>/TOOLS/BSArch" >&2
+            exit 1
+          fi
+
+          srcw="$(winepath -w "$src" 2>/dev/null || echo "$src")"
+          if [ -n "$dst" ]; then
+            dstw="$(winepath -w "$dst" 2>/dev/null || echo "$dst")"
+            exec wine "$exe" "$cmd" "$srcw" "$dstw"
+          else
+            exec wine "$exe" "$cmd" "$srcw"
+          fi
+        '';
+
         # Split-out packages that were renamed across nixpkgs versions.
         gbm = pkgs.libgbm or pkgs.mesa;
         udevLib = pkgs.systemdLibs or pkgs.systemd;
@@ -105,8 +147,9 @@
           which
           bashInteractive
           # native tools the installer shells out to from <app>/lib
-          _7zz
+          sevenzip
           xdelta
+          wineWowPackages.stable   # for the BSArch.exe wrapper (winepath + wine)
         ]);
 
         fontPkgs = with pkgs; [ dejavu_fonts liberation_ttf ];
@@ -234,8 +277,9 @@
           # downloads patch files straight into lib/Patches (no mkdir), so create
           # the tree here.
           mkdir -p "$APPDIR/lib/Patches"
-          ln -sf ${pkgs._7zz}/bin/7zz "$APPDIR/lib/7z"
+          ln -sf ${sevenzip}/bin/7zz "$APPDIR/lib/7z"
           ln -sf ${pkgs.xdelta}/bin/xdelta3 "$APPDIR/lib/xdelta3"
+          ln -sf ${bsarchWrapper} "$APPDIR/lib/BSArch"
 
           cd "$APPDIR"
           # Extra CEF/Chromium flags can be passed through, e.g.
