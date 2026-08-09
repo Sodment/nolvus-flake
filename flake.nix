@@ -203,6 +203,14 @@
           # Do NOT copy CefGlueBrowserProcess/ next to the main apphost: it ships
           # its own private .NET host (libhostfxr.so) which would hijack the main
           # app's runtime resolution and break "DOTNET_ROOT".
+          # The CefGlue subprocess apphost (and chrome-sandbox) lose their +x
+          # bit through NuGet restore — buildDotnetModule only marks the main
+          # app executable. Without +x, CEF's execvp of every subprocess fails
+          # with exit 127 ("GPU process exited unexpectedly: exit_code=32512").
+          find "$APPDIR" -type f \( -name 'Xilium.CefGlue.BrowserProcess' \
+            -o -name 'chrome-sandbox' -o -name 'NolvusDashboard' \) \
+            -exec chmod +x {} + 2>/dev/null || true
+
           cef="$(find "$APPDIR" -name libcef.so -print -quit 2>/dev/null || true)"
           hb="$(find "$APPDIR" -name libHarfBuzzSharp.so -print -quit 2>/dev/null || true)"
           if [ -n "$cef" ]; then
