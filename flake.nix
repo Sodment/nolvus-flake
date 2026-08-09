@@ -88,6 +88,7 @@
           xwayland
           wget
           coreutils
+          findutils
           which
           bashInteractive
         ]);
@@ -177,6 +178,32 @@
             cp -r "$STORE_APP"/. "$APPDIR"/
             chmod -R u+w "$APPDIR"
             printf '%s' "${nolvus-dashboard}" > "$STAMP"
+          fi
+
+          # --- CEF (CefGlue) native payload --------------------------------
+          # CefGlue loads libcef from the app's own directory, but a RID publish
+          # leaves the CEF payload under runtimes/linux-x64/native. Hoist it to
+          # the app root so libcef.so AND its resources (icudtl.dat, *.pak,
+          # locales/, the BrowserProcess helper, swiftshader) sit beside the exe.
+          if [ ! -e "$APPDIR/libcef.so" ]; then
+            cefdir="$(dirname "$(find "$APPDIR" -name libcef.so -print -quit 2>/dev/null)")"
+            if [ -n "$cefdir" ] && [ -e "$cefdir/libcef.so" ]; then
+              echo "Hoisting CEF payload: $cefdir -> $APPDIR"
+              cp -rf "$cefdir"/. "$APPDIR"/
+              chmod -R u+w "$APPDIR"
+            fi
+          fi
+
+          # CEF fails to load dynamically under the CLR on Linux ("static TLS
+          # block") unless libcef (and HarfBuzzSharp) are preloaded. This is the
+          # OutSystems-documented LD_PRELOAD workaround. Child processes (the CEF
+          # BrowserProcess helper) inherit it.
+          if [ -e "$APPDIR/libcef.so" ]; then
+            hb="$(find "$APPDIR" -name libHarfBuzzSharp.so -print -quit 2>/dev/null || true)"
+            export LD_PRELOAD="''${hb:+$hb:}$APPDIR/libcef.so''${LD_PRELOAD:+:$LD_PRELOAD}"
+            echo "LD_PRELOAD=$LD_PRELOAD"
+          else
+            echo "WARNING: libcef.so not found under $APPDIR — CEF/SSO will fail." >&2
           fi
 
           cd "$APPDIR"
