@@ -36,12 +36,18 @@ The only manual step is generating the NuGet lock (the sandboxed build has no
 network). From this flake directory, on your NixOS machine:
 
 ```bash
-nix run .#nolvus-dashboard.fetch-deps -- "$PWD/deps.nix"
+nix build .#nolvus-dashboard.fetch-deps -o fetch-deps
+./fetch-deps "$PWD/deps.nix"
 ```
 
 That restores every NuGet package (including the CefGlue CEF redist) and rewrites
 `deps.nix` with pinned hashes. The source itself is pinned in `flake.lock`
 automatically — no source hash to fill in.
+
+> Do **not** use `nix run .#nolvus-dashboard.fetch-deps`. The `fetch-deps` output is
+> a single script file (not a package with a `bin/`), so `nix run` fails with
+> `unable to execute …/bin/nolvus-dashboard; Not a directory`. Use the two-step
+> `nix build … -o fetch-deps` + `./fetch-deps` form above.
 
 ## Run
 
