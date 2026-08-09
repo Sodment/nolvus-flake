@@ -42,13 +42,29 @@
 
           cmd="''${1:-}"; src="''${2:-}"; dst="''${3:-}"
 
-          # BSArch.exe is not shipped for Linux. The app downloads the BSArch
-          # NuGet/Nexus zip into $appdir/Cache/Downloads/BSArch*.zip. Extract the
-          # exe once into $appdir/lib/bsarch and reuse it. Also accept an already
-          # extracted copy anywhere under $appdir.
+          # BSArch.exe is Windows-only. The app installs it (persistently) to
+          # <InstallDir>/TOOLS/BSArch, where <InstallDir> is stored in
+          # Instances/InstancesData.xml as <InstallPath>. Find it there; fall
+          # back to our own cache, the downloaded zip, then a broad search.
           bdir="$appdir/lib/bsarch"
+          xml="$appdir/Instances/InstancesData.xml"
+          exe=""
+
+          # 1) already extracted by us
           exe="$(find "$bdir" -iname 'BSArch*.exe' 2>/dev/null | head -n1 || true)"
 
+          # 2) the modlist's TOOLS/BSArch (read InstallPath from the instance xml)
+          if [ -z "$exe" ] && [ -f "$xml" ]; then
+            exe="$(grep -o '<InstallPath>[^<]*</InstallPath>' "$xml" 2>/dev/null \
+                    | sed 's/<[^>]*>//g' \
+                    | while IFS= read -r ip; do
+                        [ -n "$ip" ] || continue
+                        c="$(find "$ip/TOOLS/BSArch" -iname 'BSArch*.exe' 2>/dev/null | head -n1 || true)"
+                        [ -n "$c" ] && { printf '%s\n' "$c"; break; }
+                      done | head -n1 || true)"
+          fi
+
+          # 3) the downloaded zip still in the cache → extract once
           if [ -z "$exe" ]; then
             zip="$(find "$appdir/Cache" -iname 'BSArch*.zip' 2>/dev/null | head -n1 || true)"
             if [ -n "$zip" ]; then
@@ -58,12 +74,13 @@
             fi
           fi
 
+          # 4) last resort: anywhere under appdir
           if [ -z "$exe" ]; then
             exe="$(find "$appdir" -iname 'BSArch*.exe' 2>/dev/null | head -n1 || true)"
           fi
 
           if [ -z "$exe" ]; then
-            echo "BSArch wrapper: no BSArch*.exe found (looked in $bdir, $appdir/Cache, $appdir)" >&2
+            echo "BSArch wrapper: no BSArch*.exe found (checked $xml -> InstallPath/TOOLS/BSArch, $bdir, $appdir/Cache, $appdir)" >&2
             exit 1
           fi
 
