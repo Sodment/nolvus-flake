@@ -21,6 +21,15 @@
         };
         lib = pkgs.lib;
 
+        # Where the app is staged and stores ALL its data (Instances, Cache,
+        # Downloads, lib, ini, the BSArch wine prefix). Precedence at runtime:
+        #   1. $NOLVUS_DIR env var   (e.g. `NOLVUS_DIR=/mnt/stuff/nolvus nix run`)
+        #   2. this dataDir string   (hardcode a path here if you prefer)
+        #   3. $XDG_DATA_HOME/nolvus-dashboard  (default ~/.local/share/...)
+        # Leave "" to use the default. To put everything on /mnt/stuff, either
+        # export NOLVUS_DIR or set e.g. dataDir = "/mnt/stuff/nolvus-dashboard";
+        dataDir = "";
+
         dotnet-runtime = pkgs.dotnet-runtime_9;
         dotnet-sdk = pkgs.dotnet-sdk_9;
 
@@ -55,7 +64,8 @@
         # under Wine, translating the Unix paths with winepath.
         bsarchWrapper = pkgs.writeShellScript "BSArch" ''
           set -eu
-          appdir="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard"
+          appdir="''${NOLVUS_DIR:-${dataDir}}"
+          [ -n "$appdir" ] || appdir="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard"
           export WINEPREFIX="$appdir/.wine"
           export WINEDEBUG=-all
           export WINEDLLOVERRIDES="mscoree=d;mshtml=d"
@@ -266,7 +276,9 @@
           export LANG=C.UTF-8
           export LC_ALL=C.UTF-8
 
-          APPDIR="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard"
+          APPDIR="''${NOLVUS_DIR:-${dataDir}}"
+          [ -n "$APPDIR" ] || APPDIR="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard"
+          export NOLVUS_DIR="$APPDIR"   # so the BSArch subprocess uses the same dir
           STORE_APP="${nolvus-dashboard}/lib/nolvus-dashboard"
 
           if [ "''${1:-}" = "--reset" ]; then
