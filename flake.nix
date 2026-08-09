@@ -49,22 +49,23 @@
           fontconfig
           freetype
           # X11 pieces Avalonia + CEF touch directly
-          xorg.libX11
-          xorg.libICE
-          xorg.libSM
-          xorg.libXi
-          xorg.libXext
-          xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXrender
-          xorg.libXfixes
-          xorg.libXdamage
-          xorg.libXcomposite
-          xorg.libXtst
-          xorg.libXScrnSaver
-          xorg.libXinerama
-          xorg.libxcb
-          xorg.libxshmfence
+          # (top-level names; the xorg.* set is deprecated on current nixpkgs)
+          libx11
+          libice
+          libsm
+          libxi
+          libxext
+          libxcursor
+          libxrandr
+          libxrender
+          libxfixes
+          libxdamage
+          libxcomposite
+          libxtst
+          libxscrnsaver
+          libxinerama
+          libxcb
+          libxshmfence
           # misc
           zlib
           libnotify
@@ -83,7 +84,7 @@
         runtimeTools = (with pkgs; [
           protontricks
           winetricks
-          xorg.xrandr
+          xrandr
           xwayland
           wget
           coreutils
@@ -137,7 +138,15 @@
         launcher = pkgs.writeShellScript "nolvus-launch" ''
           set -euo pipefail
 
+          # Point the apphost at the .NET runtime. ${dotnet-runtime} is what
+          # buildDotnetModule itself uses, but fall back to deriving it from the
+          # `dotnet` on PATH (dotnet-runtime is in the FHS) if the layout differs.
           export DOTNET_ROOT=${dotnet-runtime}
+          if [ ! -e "$DOTNET_ROOT/host/fxr" ] && command -v dotnet >/dev/null 2>&1; then
+            export DOTNET_ROOT="$(dirname "$(readlink -f "$(command -v dotnet)")")"
+          fi
+          export DOTNET_ROOT_X64="$DOTNET_ROOT"
+          echo "Using DOTNET_ROOT=$DOTNET_ROOT"
           export DOTNET_CLI_TELEMETRY_OPTOUT=1
           export DOTNET_NOLOGO=1
           # CA trust for .NET (OpenSSL) HTTPS/WSS to nexusmods.com + CEF.
