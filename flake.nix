@@ -104,8 +104,8 @@
 
           projectFile = "Nolvus.Dashboard/Nolvus.Dashboard.csproj";
           # regenerate once (do NOT use `nix run`, fetch-deps is a bare script file):
-          #   nix build .#nolvus-dashboard.fetch-deps -o fetch-deps && ./fetch-deps "$PWD/deps.nix"
-          nugetDeps = ./deps.nix;
+          #   nix build .#nolvus-dashboard.fetch-deps -o fetch-deps && ./fetch-deps "$PWD/deps.json"
+          nugetDeps = ./deps.json;
 
           inherit dotnet-sdk dotnet-runtime;
 

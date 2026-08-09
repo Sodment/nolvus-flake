@@ -37,17 +37,20 @@ network). From this flake directory, on your NixOS machine:
 
 ```bash
 nix build .#nolvus-dashboard.fetch-deps -o fetch-deps
-./fetch-deps "$PWD/deps.nix"
+./fetch-deps "$PWD/deps.json"
 ```
 
-That restores every NuGet package (including the CefGlue CEF redist) and rewrites
-`deps.nix` with pinned hashes. The source itself is pinned in `flake.lock`
-automatically — no source hash to fill in.
+That restores every NuGet package (including the CefGlue CEF redist) and writes
+`deps.json` (a JSON lockfile) with pinned hashes. The source itself is pinned in
+`flake.lock` automatically — no source hash to fill in.
 
-> Do **not** use `nix run .#nolvus-dashboard.fetch-deps`. The `fetch-deps` output is
-> a single script file (not a package with a `bin/`), so `nix run` fails with
-> `unable to execute …/bin/nolvus-dashboard; Not a directory`. Use the two-step
-> `nix build … -o fetch-deps` + `./fetch-deps` form above.
+> Two gotchas, both handled by the command above:
+> - Do **not** use `nix run .#nolvus-dashboard.fetch-deps`. The `fetch-deps` output
+>   is a single script file (not a package with a `bin/`), so `nix run` fails with
+>   `unable to execute …/bin/nolvus-dashboard; Not a directory`.
+> - Current nixpkgs generates a **JSON** lockfile. Writing it to `deps.nix` and
+>   importing it as Nix gives `syntax error, unexpected ':'` at `"pname": "Avalonia"`.
+>   Use `deps.json` (this flake sets `nugetDeps = ./deps.json`).
 
 ## Run
 
@@ -104,7 +107,7 @@ ldd ~/.local/share/nolvus-dashboard/libcef.so | grep 'not found'
 | File        | Purpose                                                                 |
 |-------------|-------------------------------------------------------------------------|
 | `flake.nix` | Packaged build (`buildDotnetModule`) + FHS launcher; `nix run .` / `.#dev`. |
-| `deps.nix`  | NuGet lock — regenerate with `nix run .#nolvus-dashboard.fetch-deps`.    |
+| `deps.json` | NuGet lock (JSON) — regenerate with the `fetch-deps` command above.      |
 | `README.md` | This file.                                                              |
 
 ## Notes / limitations
