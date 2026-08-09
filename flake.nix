@@ -35,25 +35,35 @@
         # under Wine, translating the Unix paths with winepath.
         bsarchWrapper = pkgs.writeShellScript "BSArch" ''
           set -eu
-          export WINEPREFIX="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard/.wine"
+          appdir="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard"
+          export WINEPREFIX="$appdir/.wine"
           export WINEDEBUG=-all
           export WINEDLLOVERRIDES="mscoree=d;mshtml=d"
 
           cmd="''${1:-}"; src="''${2:-}"; dst="''${3:-}"
 
-          # Locate BSArch*.exe by walking up from the BSA path to
-          # <InstallDir>/TOOLS/BSArch (where the app installs it).
-          exe=""; d="$(dirname "$src")"
-          while [ -n "$d" ] && [ "$d" != "/" ]; do
-            for c in "$d/TOOLS/BSArch/BSArch64.exe" "$d/TOOLS/BSArch/BSArch.exe"; do
-              [ -f "$c" ] && { exe="$c"; break; }
-            done
-            [ -n "$exe" ] && break
-            d="$(dirname "$d")"
-          done
+          # BSArch.exe is not shipped for Linux. The app downloads the BSArch
+          # NuGet/Nexus zip into $appdir/Cache/Downloads/BSArch*.zip. Extract the
+          # exe once into $appdir/lib/bsarch and reuse it. Also accept an already
+          # extracted copy anywhere under $appdir.
+          bdir="$appdir/lib/bsarch"
+          exe="$(find "$bdir" -iname 'BSArch*.exe' 2>/dev/null | head -n1 || true)"
 
           if [ -z "$exe" ]; then
-            echo "BSArch wrapper: could not find BSArch*.exe under <InstallDir>/TOOLS/BSArch" >&2
+            zip="$(find "$appdir/Cache" -iname 'BSArch*.zip' 2>/dev/null | head -n1 || true)"
+            if [ -n "$zip" ]; then
+              mkdir -p "$bdir"
+              ${sevenzip}/bin/7zz x -y -o"$bdir" "$zip" >/dev/null 2>&1 || true
+              exe="$(find "$bdir" -iname 'BSArch*.exe' 2>/dev/null | head -n1 || true)"
+            fi
+          fi
+
+          if [ -z "$exe" ]; then
+            exe="$(find "$appdir" -iname 'BSArch*.exe' 2>/dev/null | head -n1 || true)"
+          fi
+
+          if [ -z "$exe" ]; then
+            echo "BSArch wrapper: no BSArch*.exe found (looked in $bdir, $appdir/Cache, $appdir)" >&2
             exit 1
           fi
 
@@ -214,6 +224,10 @@
           export SSL_CERT_DIR=${pkgs.cacert}/etc/ssl/certs
           # Fonts for Avalonia/Skia + QuestPDF report generation.
           export FONTCONFIG_FILE=${fontsConf}
+          # UTF-8 locale so 7-Zip decodes non-ASCII filenames correctly
+          # (otherwise names like "… － ○.dds" get mangled to "???").
+          export LANG=C.UTF-8
+          export LC_ALL=C.UTF-8
 
           APPDIR="''${XDG_DATA_HOME:-$HOME/.local/share}/nolvus-dashboard"
           STORE_APP="${nolvus-dashboard}/lib/nolvus-dashboard"
