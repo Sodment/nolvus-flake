@@ -7,7 +7,8 @@
 
     # Upstream source, pinned & auto-locked in flake.lock (no manual src hash needed).
     nolvus-src = {
-      url = "github:sableeyed/NolvusDashboard/819ff0f6bf78e90e3ccdd01d665af72a9cb1d519";
+      # url = "github:sableeyed/NolvusDashboard/819ff0f6bf78e90e3ccdd01d665af72a9cb1d519";
+      url = "github:sableeyed/NolvusDashboard/4.0.2";
       flake = false;
     };
   };
@@ -30,8 +31,8 @@
         # export NOLVUS_DIR or set e.g. dataDir = "/mnt/stuff/nolvus-dashboard";
         dataDir = "";
 
-        dotnet-runtime = pkgs.dotnet-runtime_9;
-        dotnet-sdk = pkgs.dotnet-sdk_9;
+        dotnet-runtime = pkgs.dotnet-runtime_10;
+        dotnet-sdk = pkgs.dotnet-sdk_10;
 
         # 7-Zip WITH the RAR codec. nixpkgs disables RAR by default (unfree
         # unRAR license); without it, extracting .rar mods fails with
@@ -217,7 +218,7 @@
         # ------------------------------------------------------------------
         nolvus-dashboard = pkgs.buildDotnetModule {
           pname = "nolvus-dashboard";
-          version = "3.8.8.1";
+          version = "4.0.2";
           src = nolvus-src;
 
           projectFile = "Nolvus.Dashboard/Nolvus.Dashboard.csproj";
