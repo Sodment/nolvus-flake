@@ -7,7 +7,6 @@
 
     # Upstream source, pinned & auto-locked in flake.lock (no manual src hash needed).
     nolvus-src = {
-      # url = "github:sableeyed/NolvusDashboard/819ff0f6bf78e90e3ccdd01d665af72a9cb1d519";
       url = "github:sableeyed/NolvusDashboard/4.0.2";
       flake = false;
     };
